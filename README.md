@@ -1,2 +1,2 @@
 # MagoLego-SNA
-My home assignments for Social Network Analysis course at HSE
+My home assignments for Social Networks Analysis course at HSE
