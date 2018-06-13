@@ -1,0 +1,175 @@
+---
+title: "Social Network Analysis <br/> Home Assignment 4"
+author: 'Maria Osipova'
+date: "due date - 11.06.2018 23:59"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+# Network Epidemics
+
+Please send your reports to hse.ntwks@gmail.com with the subject of of the following structure:<br/>
+*[MAGOLEGO SNA 2017] {LastName} {First Name} HW{Number}*
+
+Late submission policy: -2 points per day
+
+Use this file as a template for your report.\
+Support your computations with figures and comments. Send ONLY .Rmd versions of your report.
+
+```{r, echo=FALSE}
+library(igraph)
+```
+## SIR Model
+
+You need to perform epidemic SIR model on different types of networks:
+Try different parameters for network generation
+```{r}
+gl <- list()
+gl$ba <- barabasi.game(n = 100,m = 12 , directed=FALSE)
+gl$er <- erdos.renyi.game(n = 250, p.or.m = 0.02, type=c("gnp"))
+gl$ws <- watts.strogatz.game(dim = 1, size = 1000, nei = 3, p = 0.01)
+
+data <- read.table("Net.txt")
+data <- t(as.matrix(data))
+data <- data[,c(11:20777)] # data with id = 0 leads to compilation error - making a subset without it
+gl$net <- graph(data)
+ev_er <- evcent(gl$er)$value
+ev_ba <- evcent(gl$ba)$value
+ev_ws <- evcent(gl$ws)$value
+ev_net <- evcent(gl$net)$value
+no.clusters(gl$er)
+no.clusters(gl$ba)
+no.clusters(gl$ws)
+no.clusters(gl$net)
+
+``` 
+Moreover perform modeling on real peer-to-peer network [here](https://www.hse.ru/data/2016/04/21/1130159900/Net.txt)
+
+
+Your goal is to perform a research on epidemics:
+Use different values of parameters listed below
+```{r}
+beta <- 2
+gamma <- 4
+ntrials <- 100
+
+# Running function sir for each element of list gl (list with graphs)
+sim <- lapply(gl, sir, beta=beta, gamma=gamma, no.sim=ntrials)
+
+beta1 <- 4
+gamma1 <- 8
+ntrials1 <- 100
+
+# Running function sir for each element of list gl (list with graphs)
+sim1 <- lapply(gl, sir, beta=beta1, gamma=gamma1, no.sim=ntrials1)
+
+beta2 <- 6
+gamma2 <- 6
+ntrials2 <- 500
+
+# Running function sir for each element of list gl (list with graphs)
+sim2 <- lapply(gl, sir, beta=beta2, gamma=gamma2, no.sim=ntrials2)
+
+beta3 <- 8
+gamma3 <- 2
+ntrials3 <- 1000
+
+# Running function sir for each element of list gl (list with graphs)
+sim3 <- lapply(gl, sir, beta=beta3, gamma=gamma3, no.sim=ntrials3)
+```
+at least 3 different versions, for example:
+
+* betta (4 6 8)
+* gamma (8 6 2)
+* niter (100 500 1000)
+    
+*For some reason `beta` and `gamma` parameters should not be set below 0 and 1. Looks like they are somehow normilized during simulation.*
+
+The code below can help you with plotting
+```{r}
+# par(mfrow=c(3,1)) # combining plots
+plot(sim$er)
+plot(sim$ba, color="palegoldenrod", median_color="gold", quantile_color="gold")
+plot(sim$ws, color="pink", median_color="red", quantile_color="red")
+
+x.max <- max(sapply(sapply(sim, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim$er), median(sim$er)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 100), xlab="Time", ylab=expression(N[I](t)))
+lines(time_bins(sim$ba), median(sim$ba)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim$ws), median(sim$ws)[["NI"]],lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),col=c("blue", "gold", "red"), lty=1)
+```
+
+You need to plot three values on the graphics: Number of infected, number of suseprible, number of recovered - all depends on time.
+As a result of this task, you need to provide 12 plots (one for each network with 3 diferent parameters) with explanation.
+
+Number of infected, number of susceptible, number of recovered - all depends on time.
+
+The main ideas of these models are:
+ - Erdos-Renyi (ER) model: every possible edge is created with the same constant probability.
+ - Barabasi-Albert (BA) model: each new node is connected to existing nodes with a probability proportional to the number of links of these nodes.
+ - Watts-Strogatz (WS) model: accounts for clustering while retaining the short average path lengths of the ER model.
+ 
+At the plots we see that as time increases, we get that r(t) (fraction of the population that will get sick) stabilizes and so dr/dt = 0 and lines come to 0 - common thing for all the simulations.
+
+At the given simulation (2 4 100) for er model we see the peak, but rather small.
+
+for ba model we see the bigger peak relatively to other plots
+
+for ws model we don't see peaks - this connected with the fact that only 1 cluster for this model exists (see the result of function no.clusters(gl$ws)).
+
+```{r}
+# par(mfrow=c(3,1)) # combining plots
+plot(sim1$er)
+plot(sim1$ba, color="palegoldenrod", median_color="gold", quantile_color="gold")
+plot(sim1$ws, color="pink", median_color="red", quantile_color="red")
+
+x.max <- max(sapply(sapply(sim1, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim1, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim1$er), median(sim1$er)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 100), xlab="Time", ylab=expression(N[I](t)))
+lines(time_bins(sim1$ba), median(sim1$ba)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim1$ws), median(sim1$ws)[["NI"]],lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),col=c("blue", "gold", "red"), lty=1)
+```
+
+At the given simulation (4 8 100) we see the same behaviour as at the previous simulation because of the proportion between them, but for the WS model the small peak appears and as time increases.
+
+```{r}
+# par(mfrow=c(3,1)) # combining plots
+plot(sim2$er)
+plot(sim2$ba, color="palegoldenrod", median_color="gold", quantile_color="gold")
+plot(sim2$ws, color="pink", median_color="red", quantile_color="red")
+
+x.max <- max(sapply(sapply(sim2, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim2, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim2$er), median(sim2$er)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 200), xlab="Time", ylab=expression(N[I](t)))
+lines(time_bins(sim2$ba), median(sim2$ba)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim2$ws), median(sim2$ws)[["NI"]],lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),col=c("blue", "gold", "red"), lty=1)
+```
+
+At the given simulation (6 6 500) we see absolutely different behaviour - there are relatively big peaks for ER and BA simulation, and as the time increases WS model is not coming to 0 for a long time and for BA and ER come to 0 very fast - this connected with the small number of trials.
+
+```{r}
+# par(mfrow=c(3,1)) # combining plots
+plot(sim3$er)
+plot(sim3$ba, color="palegoldenrod", median_color="gold", quantile_color="gold")
+plot(sim3$ws, color="pink", median_color="red", quantile_color="red")
+
+x.max <- max(sapply(sapply(sim3, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim3, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim3$er), median(sim3$er)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 500), xlab="Time", ylab=expression(N[I](t)))
+lines(time_bins(sim3$ba), median(sim3$ba)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim3$ws), median(sim3$ws)[["NI"]],lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),col=c("blue", "gold", "red"), lty=1)
+```
+
+At the given simulation (8 2 1000) because of a big value of beta parameter and small value of gamma we see the highest peaks of all the simulations and the typical coming to 0 for all the models. It connected with the formulas (ds/
+dt = - beta * s * x and dx/dt = beta * s * x - gamma * x) - the big increment at the time.
+

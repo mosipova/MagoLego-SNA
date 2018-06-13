@@ -1,0 +1,116 @@
+---
+title: "Social Network Analysis <br/> Home Assignment 3"
+author: 'Maria Osipova'
+date: "due date - 04.06.2018 23:59"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+# Network communities
+Please send your reports to hse.ntwks@gmail.com with the subject of of the following structure:<br/>
+*[MAGOLEGO SNA 2018] {LastName} {First Name} HW{Number}*
+
+Late submission policy: -1 point per day
+
+Use this file as a template for your report.\
+Support your computations with figures and comments. Send ONLY .Rmd versions of your report.
+
+```{r, echo=FALSE}
+library(igraph)
+```
+
+
+## Yahoo Music Network
+
+For this assignment, you have to load [the part of Yahoo Music Network](https://drive.google.com/file/d/0Bwd5a7NScgMtNElfOFdSbE1UYnM/view). Archive contains network in GML format and corresponding list of artists.
+
+```{r}
+g <- read.graph("music2K.gml", format = "gml")
+artists <- scan("artists.txt", what="", sep="\n")
+V(g)$label = artists
+```
+
+Edges in this network appear if enough number of users have given ratings to both music bands. Note, that edges are weighted with similarity of the ratings.
+
+
+### 1. Preprocessing
+
+This network needs to be preprocessed. Do the steps, described on seminar, to make it look properly. How many vertices and edges were deleted?
+
+```{r}
+raw_vertex <- vcount(g)
+raw_edges <- ecount(g)
+
+g <- delete.vertices(g, degree(g) == 0)
+is.simple(simplify(g, remove.multiple=FALSE))
+
+clean_vertex <- vcount(g)
+clean_edges <- ecount(g)
+
+dv <- raw_vertex - clean_vertex
+de <- raw_edges - clean_edges
+
+print(sprintf("Was deleted %d vertices and %d edges", dv, de))
+```
+
+### 2. Clustering
+
+Define clusters for this networks using one of the algorithms described on lectures and seminars:
+```{r}
+c <- fastgreedy.community(g)
+```
+
+Compute density of obtained clusters:
+```{r}
+dens <- 1:length(c)
+inner_con <-  1:length(c)
+for (i in 1:length(c)) {
+  temp_g <- induced.subgraph(g, which(c$membership == i))
+  
+  e1 <- inner_con[i]
+  d1 <- dens[i]
+  
+  e1 <- ecount(temp_g)
+  d1 <- graph.density(temp_g)
+
+  print(sprintf("Cluster ¹ %d with %d edges has density = %.4f", i, e1, d1))
+  
+}
+
+```
+
+Compute the ratio of inner clusters connections to outer ones:
+```{r}
+for (i in 1:length(c)){
+  temp_g = induced.subgraph(g, c$membership == i)
+  all_edges = length(E(g))
+  inner_edges = length(E(temp_g))
+  outer_edges = length(E(induced.subgraph(g,!(c$membership == i))))
+  btw_edges = all_edges - inner_edges - outer_edges
+  print(sprintf("Ratio for cluster # %d = %.3f",i, inner_edges/btw_edges))
+}
+```
+
+
+### 3. Visualization & interpretation
+
+Visulize five of the most dense clusters. Use names of artists as node labels on the graph.
+```{r}
+par(mfrow=c(2,3))
+top_dens <- which(dens %in% sort(dens, decreasing = TRUE)[1:5])
+for (i in 1:5) {
+top_vert <- which(c$membership %in% top_dens[i])
+top_graph <- induced.subgraph(g, top_vert)
+plot(top_graph, layout=layout.circle, main=sprintf("Top %d dense cluster", i))
+}
+```
+
+<b> (Extra task) </b>Try to interpret (using Wikipedia or other resources) obtained clusters.
+
+*Top-1 cluster:  Cluster mostly consists of USA artists which were popular in 80's-90's and played music in such genres as pop-dance and freestyle.*
+*Top-2 cluster: Musicians in this cluster are mostly American gospel singers.*
+*Top-3 cluster: This cluster consists of popular stand-up comedians.*
+*Top-4 cluster: Musicians in this cluster play funk music.*
+*Top-5 cluster: Cluster consists of North-American jazz musicians.*

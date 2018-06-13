@@ -1,0 +1,267 @@
+---
+title: "Social Network Analysis <br/> Home Assignment 2"
+author: 'Maria Osipova'
+date: "due date - 28.05.2018 23:59"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+# Graph models. Centrality metrics
+Please send your reports to hse.ntwks@gmail.com with the subject of of the following structure:<br/>
+*[MAGOLEGO SNA 2017] {LastName} {First Name} HA{Number}*
+
+Late submission policy: -1 point per day
+
+Use this file as a template for your report.\
+Support your computations with figures and comments. Send ONLY .Rmd versions of your report with datasets for your social network. Anonymize your data if necessary.
+
+```{r, echo=FALSE}
+library(igraph)
+library(rgexf)
+library(ggplot2)
+library(R.matlab)
+```
+
+
+## Task 1. Your social network
+
+For the first task, you have to load your [vk.com](http://vk.com) network. Please follow the instructions posted on the course wiki or user [VK Application](vk.com/app3861133). For [FB](http://facebook.com) users try to use [NetVizz](http://thepoliticsofsystems.net/2010/03/netvizz-facebook-to-gephi/). If you did it correctly, you should have a GraphML file with your own network. Read it to R:
+
+```{r}
+mygraph = read.gexf("vk-friends-8835969.gexf")
+friends_graph <- gexf.to.igraph(mygraph)
+
+```
+
+### 1. Degree distribution
+
+First, plot degree distribution of your network in log-log scales:
+
+```{r}
+degree_dist <- degree.distribution(friends_graph, cumulative = TRUE)
+plot(degree_dist, log="xy", main = "Cumulative degree distribution of friends network in log-log scale", xlab = "Degree", ylab = "Frequency")
+
+```
+
+Is there any correspondence between actual degree distribution of your network and the Power Law distribution? If not, explain why.
+
+> Yes, there is correspondence.
+
+Now, let's see how it would look if it was random. Produce Erdos-Renyi graph matching your real network (same number of nodes and same average degree). Compare it with your degree distribution.
+
+```{r}
+n <- vcount(friends_graph)
+mean_degree <- mean(degree(friends_graph))
+rndm <- erdos.renyi.game(n, mean_degree/n/2, type = "gnp", directed = TRUE)
+rndm_dist <- degree.distribution(rndm, cumulative = TRUE)
+plot(rndm_dist, log="xy", main = "Cumulative degree distribution of random network in log-log scale", xlab = "Degree", ylab = "Frequency")
+```
+
+> There is a lot of vertices with degree more than ~30 in my network distribution. Maximum degree is a little less than 100. Random network has more nodes with relatively small degree (~less than 25)
+
+### 2. Compute centrality metrics
+
+Compute for your network: 
+
+* degree centrality
+
+* closeness centrality
+
+* betweenness centrality
+
+* eigenvector centrality
+
+* Bonacich power centrality
+
+* Alpha centrality
+
+
+```{r}
+centralization.degree(friends_graph)$centralization
+
+centralization.closeness(friends_graph, mode="all")$centralization
+
+centralization.betweenness (friends_graph, directed = TRUE, nobigint = TRUE)$centralization
+
+centralization.evcent (friends_graph, directed = TRUE, scale = FALSE, options = igraph.arpack.default)$centralization
+
+```
+
+Output six plots corresponding to six centrality metrics you've computed: 
+
+* Use first names of your friends as node labels on the graph (you may hide this information if you wish -- change it by integer ID)
+* Keep the same layout of the network
+* Make node sizes and colours proportional to the respective centrality metrics
+
+Hint: If you get stuck, lab 4 script might be helpful.
+
+```{r}
+deg<-degree(friends_graph)
+lay <- layout.fruchterman.reingold(friends_graph)
+fine = 500
+palette <- colorRampPalette(c('blue','red'))
+degCol <- palette(fine)[as.numeric(cut(deg,breaks = fine))]
+vert_size <- ifelse(deg>50, 1/50*deg, 1)
+par(mfrow=c(2,3))
+plot(friends_graph, layout=lay, vertex.color=degCol, vertex.size=vert_size, vertex.label=NA, edge.width = 0.5, edge.arrow.size = 0.5, main="Degree centrality")
+
+clos=closeness(friends_graph)
+closCol = palette(fine)[as.numeric(cut(clos,breaks = fine))]
+
+plot(friends_graph,layout = lay, vertex.label=NA, vertex.color=closCol, vertex.size=clos*15000, edge.width = 0.5, edge.arrow.size = 0.5, main="Closeness centrality")
+
+betw <- betweenness(friends_graph)
+betwCol = palette(fine)[as.numeric(cut(betw,breaks = fine))]
+vert_size <- ifelse(betw>4000, 1/4000*betw, 1)
+plot(friends_graph,layout = lay, vertex.color=betwCol, vertex.size=vert_size, vertex.label=NA, edge.width = 0.5, edge.arrow.size = 0.5, main="Betwenness centrality")
+
+ev <- evcent(friends_graph)$vector
+evCol = palette(fine)[as.numeric(cut(ev,breaks = fine))]
+vert_size <- ifelse(ev>0.2, 5*ev, 0.8)
+plot(friends_graph,layout = lay, vertex.size=vert_size, vertex.color=evCol, vertex.label=NA, edge.width = 0.5, edge.arrow.size = 0.5, main="Eigenvector centrality")
+
+sum(degree(friends_graph) < 3) # if value is non-zero you have isolates
+friends_graph_gg <- delete_vertices(friends_graph, which(degree(friends_graph) < 3))
+
+bon <- bonpow(friends_graph_gg, rescale=TRUE)
+bonCol = palette(fine)[as.numeric(cut(bon,breaks = fine))]
+vert_size <- ifelse(bon>0.01, 5*bon, 0.8)
+plot(friends_graph_gg,layout = lay, vertex.size=vert_size, vertex.color=bonCol, vertex.label=NA, edge.width = 0.5, edge.arrow.size = 0.5, main="Bonachich power centrality")
+
+alpha <- alpha.centrality(friends_graph_gg)
+alphaCol = palette(fine)[as.numeric(cut(alpha,breaks = fine))]
+vert_size <- ifelse(alpha>0.2, 2*alpha, 0.8)
+plot(friends_graph_gg,layout = lay, vertex.size=vert_size, vertex.color=alphaCol, vertex.label=NA, edge.width = 0.5, edge.arrow.size = 0.5, main="Alpha centrality")
+
+```
+
+Now, output top ten nodes in each ranking. Again, print only first names in your table to keep privacy:
+
+```{r}
+sort(deg, decreasing = TRUE)[1:10]
+sort(clos, decreasing = TRUE)[1:10]
+sort(betw, decreasing = TRUE)[1:10]
+sort(ev, decreasing = TRUE)[1:10]
+
+```
+
+*Comment on your results here - for example, why some nodes have high betweenness centrality and the others have high closeness centrality. Is this what you would expect to see?*
+> Yes, I expected to see something close to that, becouse the result shows several groups of people with which I used to be friends. I lived in 2 cities, have friends from a couple of events not connected to my everyday life or work so it is not a surprice what groups are not highly connected.
+
+## Task 2. Flickr network
+
+In the second task, you will work with a large directed graph. 
+
+Please download [flickr.mat](http://www.hse.ru/data/2015/05/01/1098247366/flickr.mat) 
+
+*Data contains sparse matrix A and list of user names. This is a denser part of the Flickr photo sharing site friendship graph from 2006. Edge direction corresponds to friendship requests (following). Some of the links are reciprocal, others not*
+
+It's a Matlab file. How to deal with it in R? There is a package `R.matlab`. Please install it and call `library(R.matlab)`
+
+Now use `readMat` function to read the file and extract adjacency matrix and a list of user names:
+
+```{r}
+flickr <- readMat("flickr.mat")
+fmatrix = as.matrix(flickr[1]$A)
+fnames = flickr[2]$names
+```
+
+If you have trouble loading large mat file on your laptop --- try to use HSE computer classes with installed R+RStudio.
+
+Look at user names. You might want to remove spaces from the names. Use a function `gsub` to remove them:
+
+```{r}
+fnames=gsub(" ", "", fnames)
+```
+
+Now create a graph, output the number of vertices and edges:
+
+```{r}
+flickr_graph <- graph.adjacency(fmatrix, mode = "directed", weighted = NULL)
+vcount(flickr_graph)
+ecount(flickr_graph)
+
+```
+
+Compute in- and out- degree centralities, PageRank, Hubs and Authorities for this network:
+
+```{r}
+cdi <-centralization.degree(flickr_graph, mode = "in")$centralization
+
+cdo <-centralization.degree(flickr_graph, mode = "out")$centralization
+
+pr <- page.rank(flickr_graph)$vector
+
+h <- hub.score(flickr_graph)$vector
+
+auth <- authority.score(flickr_graph)$vector
+
+```
+
+Print top ten names in each ranking:
+
+```{r}
+deg_in<-degree(flickr_graph, mode = "in")
+top_in <- sort(deg_in, decreasing = TRUE)[1:10]
+fnames[which(deg_in %in% top_in)]
+
+deg_out=degree(flickr_graph, mode = "out")
+top_out <- sort(deg_out, decreasing = TRUE)[1:10]
+fnames[which(deg_out %in% top_out)]
+
+top_pr <- sort(pr, decreasing = TRUE)[1:10]
+fnames[which(pr %in% top_pr)]
+
+top_hub <- sort(h, decreasing = TRUE)[1:10]
+fnames[which(h %in% top_hub)]
+
+top_auth <- sort(auth, decreasing = TRUE)[1:10]
+fnames[which(auth %in% top_auth)]
+
+```
+
+Produce the following plots:
+
+* In-degree centralities versus out-degree centralities
+
+* In-degree centralities versus authorities
+
+* Out-degree centralities versus hubs
+
+* Hubs versus authorities
+
+* PageRank versus hubs
+
+* PageRank versus authorities
+
+
+```{r}
+par(mfrow = c(2, 3)) 
+plot(deg_in, deg_out, col="blue", xlab = "In degree", ylab = "Out degree")
+plot(deg_in, auth, col="blue", xlab = "In degree", ylab = "Authority")
+plot(deg_out, h, col="blue", xlab = "Out degree", ylab = "Hubs")
+plot(h, auth, col="blue", xlab = "Hubs", ylab = "Authority")
+plot(pr, h, col="blue", xlab = "Page Rank", ylab = "Hubs")
+plot(pr, auth, col="blue", xlab = "Page Rank", ylab = "Authority")
+
+```
+
+*Comment on the relationships between different centrality metrics*
+
+Indegree and outdegree are closely correlated,
+indicating that social talk with others is not reciprocated (i.e.,
+if you talk to others, they tend to talk back to you). But on the graph we see the outliers at Indegree values (some addicted users).
+
+Authority and indegree exactly connected because of the fact that the algorithm makes popular things (> indegree value) higher that ordinary ones.
+
+Hubs and outdegree connected, but with a fact of zero hubs for some big values of outdegree, because of the trendings in outdegree - the stats of outdegree are collected and used for recommendations.
+
+Authority and hubs are not connected (the average value of Authority is close to zero) because the queries can contain different info than the pages really have.
+
+Hubs is also not about page rank, so it's also bad correlation.
+
+Authority and page rank closely connected, because both Authority and page rank are oriented on out- and in- degree connection.
+
+ 
